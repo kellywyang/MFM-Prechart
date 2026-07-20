@@ -72,6 +72,31 @@
     .rec-box { background:#F3F8FD; border:0; border-radius:.9rem; padding:.65rem .8rem; margin:.45rem 0 .75rem 0; max-width:900px; }
     .rec-box-title { font-size:.78rem; line-height:1.35; color:#64748b; font-weight:650; margin-bottom:.25rem; }
     .rec-box-line { display:block; width:100%; text-align:left; border:0; background:transparent; padding:.08rem 0 .08rem .8rem; color:#8b9ab3; font-size:.78rem; line-height:1.38; font-weight:400; }
+    .rec-apply-button {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.guideline-link {
+  color: var(--acog-teal-dark);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.guideline-link:hover {
+  color: var(--acog-teal);
+}
     .rec-box-line:hover { color:var(--acog-teal-dark); }
     .mod-timing-divider { border-top:1px solid #e7edf4; margin:1rem 0 1rem; }
     .card-title-row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:.65rem .9rem; margin-bottom:.7rem; }
@@ -137,7 +162,9 @@
 
 const state = { page: 0, values: {}, indications: new Set(), openGroups: new Set() };
 const pages = ['Patient History', '1. Routine Care', '2. High Risk Plan', '3. Postpartum Plan', '4. Ultrasounds', '5. Immunizations'];
-
+const ACOG_828_URL =
+  'https://www.acog.org/clinical/clinical-guidance/committee-opinion/articles/2021/06/indications-for-outpatient-antenatal-fetal-surveillance';
+  
 function rec(key, label, source, acogStart, acogFreq, deliveryCategory, deliveryTiming, uihStart, uihFreq) {
   return { key, label, source, guideline: { acog: { start: acogStart || '', freq: acogFreq || '', delCat: deliveryCategory || '', del: deliveryTiming || '' }, uih: { start: uihStart || '', freq: uihFreq || '' } } };
 }
@@ -310,12 +337,45 @@ function formatPlanText(start, freq) {
   return parts.join(' ');
 }
 function sourceBox(title, badge, rows, applyRow, applyText, isDelivery) {
-  var visibleRows = rows.filter(function(row) { return row && row.value; });
+  var visibleRows = rows.filter(function(row) {
+    return row && row.value;
+  });
+
   if (!visibleRows.length) return '';
+
   return visibleRows.map(function(row) {
     var prefix = title;
-    if (isDelivery && row.sub) prefix += ' (' + row.sub + ')';
-    return '<button type="button" class="rec-box-line" data-apply-row="' + esc(applyRow) + '" data-apply-text="' + esc(applyText || '') + '">' + esc(prefix) + ': ' + esc(row.value) + '</button>';
+
+    if (isDelivery && row.sub) {
+      prefix += ' (' + row.sub + ')';
+    }
+
+    var sourceLabel;
+
+    if (title === 'ACOG No. 828') {
+      sourceLabel =
+        '<a href="' + esc(ACOG_828_URL) + '"' +
+        ' target="_blank"' +
+        ' rel="noopener noreferrer"' +
+        ' class="guideline-link"' +
+        ' title="Open ACOG Committee Opinion No. 828 PDF"' +
+        ' onclick="event.stopPropagation()">' +
+        esc(prefix) +
+        '</a>';
+    } else {
+      sourceLabel = esc(prefix);
+    }
+
+    return (
+      '<div class="rec-box-line">' +
+        '<button type="button"' +
+          ' class="rec-apply-button"' +
+          ' data-apply-row="' + esc(applyRow) + '"' +
+          ' data-apply-text="' + esc(applyText || '') + '">' +
+          sourceLabel + ': ' + esc(row.value) +
+        '</button>' +
+      '</div>'
+    );
   }).join('');
 }
 function guidelineTags(field, rowId) { const selected = selectedInds(); if (!selected.length) return ''; const html = selected.map(function(item) { const g = item.guideline || { acog: {}, uih: {} }; if (field === 'nst') { const acogText = [g.acog.start ? 'start ' + g.acog.start : '', g.acog.freq || ''].filter(Boolean).join(', '); const uihText = [g.uih.start ? 'start ' + g.uih.start : '', g.uih.freq || ''].filter(Boolean).join(', '); const lines = sourceBox('ACOG No. 828', 'ACOG', [{ label: 'Start/Frequency', value: [g.acog.start ? 'start ' + g.acog.start : '', g.acog.freq].filter(Boolean).join(', ') }], rowId, acogText, false) + sourceBox('UIH', 'UIH', [{ label: 'Start/Frequency', value: [g.uih.start ? 'start ' + g.uih.start : '', g.uih.freq].filter(Boolean).join(', ') }], rowId, uihText, false); return lines ? '<div class="rec-box"><div class="rec-box-title">' + esc(item.label) + '</div>' + lines + '</div>' : ''; } if (field === 'timing') { const lines = sourceBox('Delivery timing', 'ACOG No. 831', [{ label: 'Delivery timing', sub: g.acog.delCat, value: g.acog.del }], rowId, g.acog.del, true); return lines ? '<div class="rec-box"><div class="rec-box-title">' + esc(item.label) + '</div>' + lines + '</div>' : ''; } return ''; }).filter(Boolean).join(''); return html ? '<div class="mt-2">' + html + '</div>' : ''; }
